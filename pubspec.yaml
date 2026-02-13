@@ -1,0 +1,52 @@
+name: linkvault
+description: Local-first bookmark manager with collections and tags.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # DATABASE
+  sqflite: ^2.4.2
+  path: ^1.9.0
+
+  # STATE
+  flutter_riverpod: ^2.6.1
+
+  # NETWORK
+  http: ^1.2.2
+
+  # IMAGES
+  image_picker: ^1.1.2
+  cached_network_image: ^3.4.1
+
+  # SETTINGS
+  shared_preferences: ^2.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.13 #no hace falta actualmente
+
+  flutter_launcher_icons: ^0.14.3
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo-2.png"
+  adaptive_icon_background: "#FFFFFF"
