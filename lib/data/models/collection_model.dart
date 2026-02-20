@@ -1,3 +1,5 @@
+// lib/data/models/collection_model.dart
+
 class CollectionModel {
   final int? id;
   final String name;
@@ -32,4 +34,53 @@ class CollectionModel {
       'created_at': createdAt,
     };
   }
+
+  /* CollectionModel copyWith({
+    int? id,
+    String? name,
+    String? color,
+    String? coverImage,
+    String? createdAt,
+  }) {
+    return CollectionModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      color: color ?? this.color,
+      coverImage: coverImage ?? this.coverImage,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  } */
+
+  CollectionModel copyWith({
+    int? id,
+    String? name,
+    String? color,
+    Object? coverImage = _sentinel,
+    String? createdAt,
+  }) {
+    return CollectionModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      color: color ?? this.color,
+      coverImage: coverImage == _sentinel
+          ? this.coverImage
+          : coverImage as String?,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  static const _sentinel = Object();
+}
+
+class CollectionWithCount extends CollectionModel {
+  final int bookmarkCount;
+
+  CollectionWithCount({
+    required super.id,
+    required super.name,
+    super.color,
+    super.coverImage,
+    required super.createdAt,
+    required this.bookmarkCount,
+  });
 }

@@ -1,3 +1,5 @@
+// lib/data/models/bookmark_model.dart
+
 class BookmarkModel {
   final int? id;
   final String? title;
