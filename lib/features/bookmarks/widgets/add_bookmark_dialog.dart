@@ -35,6 +35,7 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
   String? _remoteImageUrl;
   bool _isSaving = false;
   bool _isFetchingMeta = false;
+  bool _metaFetched = false;
 
   bool get _isEditing => widget.existingBookmark != null;
 
@@ -53,6 +54,7 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
           _selectedImage = File(existing.image!);
         }
       }
+      _metaFetched = true;
     }
   }
 
@@ -64,20 +66,27 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
     super.dispose();
   }
 
-  // ─── Fetch Open Graph metadata (add mode) ───────────────────────────────────
+  String _hostnameOf(String url) {
+    try {
+      return Uri.parse(url).host.replaceFirst('www.', '');
+    } catch (_) {
+      return url;
+    }
+  }
+
   Future<void> _fetchMetadata() async {
     final url = _urlController.text.trim();
     if (url.isEmpty) return;
 
     setState(() => _isFetchingMeta = true);
+
     final meta = await MetadataService().fetch(url);
 
     if (mounted) {
       setState(() {
         _isFetchingMeta = false;
-        if (meta.title != null && meta.title!.isNotEmpty) {
-          _titleController.text = meta.title!;
-        }
+        _metaFetched = true;
+        if (meta.title != null) _titleController.text = meta.title!;
         if (meta.imageUrl != null &&
             _selectedImage == null &&
             _remoteImageUrl == null) {
@@ -87,7 +96,6 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
     }
   }
 
-  // ─── Image picker (edit mode only) ──────────────────────────────────────────
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(
       source: ImageSource.gallery,
@@ -112,28 +120,16 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
     });
   }
 
-  // ─── Fallback title from URL host ───────────────────────────────────────────
-  String _fallbackTitle(String url) {
-    try {
-      return Uri.parse(url).host.replaceFirst('www.', '');
-    } catch (_) {
-      return url;
-    }
-  }
-
-  // ─── Save ────────────────────────────────────────────────────────────────────
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
 
     final repo = ref.read(bookmarkRepositoryProvider);
     final rawUrl = _urlController.text.trim();
-    String imageToSave = _selectedImage?.path ?? _remoteImageUrl ?? '';
 
     if (_isEditing) {
-      // In edit mode the user sets the title manually; use fallback if empty.
       final title = _titleController.text.trim().isEmpty
-          ? _fallbackTitle(rawUrl)
+          ? _hostnameOf(rawUrl)
           : _titleController.text.trim();
 
       await repo.update(
@@ -143,23 +139,23 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
           notes: _notesController.text.trim().isEmpty
               ? null
               : _notesController.text.trim(),
-          image: imageToSave.isEmpty ? null : imageToSave,
+          image: _selectedImage?.path ?? _remoteImageUrl,
         ),
       );
     } else {
-      // In add mode, auto-fetch metadata if it hasn't been fetched yet.
-      String resolvedTitle = _titleController.text.trim();
+      String? resolvedTitle = _titleController.text.trim().isEmpty
+          ? null
+          : _titleController.text.trim();
       String? resolvedImage = _remoteImageUrl;
 
-      if (resolvedTitle.isEmpty && !_isFetchingMeta) {
+      if (!_metaFetched) {
         final meta = await MetadataService().fetch(rawUrl);
-        resolvedTitle = (meta.title != null && meta.title!.isNotEmpty)
-            ? meta.title!
-            : _fallbackTitle(rawUrl);
+        resolvedTitle ??= meta.title;
         resolvedImage ??= meta.imageUrl;
-      } else if (resolvedTitle.isEmpty) {
-        resolvedTitle = _fallbackTitle(rawUrl);
       }
+
+      // Guaranteed fallback — hostname is always available
+      resolvedTitle ??= _hostnameOf(rawUrl);
 
       await repo.insert(
         BookmarkModel(
@@ -183,7 +179,6 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
     if (mounted) Navigator.pop(context);
   }
 
-  // ─── Delete (edit mode only) ─────────────────────────────────────────────────
   Future<void> _delete() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -213,7 +208,6 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
     if (mounted) Navigator.pop(context);
   }
 
-  // ─── Build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -236,7 +230,6 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Header ─────────────────────────────────────────────────
                 Text(
                   _isEditing ? 'Edit bookmark' : 'Add bookmark',
                   style: theme.textTheme.titleLarge?.copyWith(
@@ -246,9 +239,7 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
 
                 const SizedBox(height: 20),
 
-                // ══════════════════════════════════════════════════════════
-                // EDIT MODE — image picker + title field shown
-                // ══════════════════════════════════════════════════════════
+                // ── EDIT MODE: image + title ────────────────────────────────
                 if (_isEditing) ...[
                   Stack(
                     children: [
@@ -293,8 +284,6 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
                                 ),
                         ),
                       ),
-
-                      // Clear image
                       if (hasImage)
                         Positioned(
                           right: 8,
@@ -315,8 +304,6 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
                             ),
                           ),
                         ),
-
-                      // Delete bookmark
                       Positioned(
                         right: 8,
                         bottom: 8,
@@ -338,25 +325,18 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 16),
-
-                  // Title — editable in edit mode
                   TextFormField(
                     controller: _titleController,
                     decoration: const InputDecoration(hintText: 'Title'),
                   ),
-
                   const SizedBox(height: 12),
                 ],
 
-                // ══════════════════════════════════════════════════════════
-                // BOTH MODES — URL field
-                // ══════════════════════════════════════════════════════════
+                // ── BOTH MODES: URL ─────────────────────────────────────────
                 TextFormField(
                   controller: _urlController,
                   keyboardType: TextInputType.url,
-                  // Auto-fetch when leaving field (add mode only)
                   onEditingComplete: _isEditing ? null : _fetchMetadata,
                   decoration: InputDecoration(
                     hintText: 'URL',
@@ -369,7 +349,6 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             ),
                           )
-                        // Manual fetch button visible in add mode only
                         : !_isEditing
                         ? IconButton(
                             icon: const Icon(
@@ -391,9 +370,7 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
 
                 const SizedBox(height: 12),
 
-                // ══════════════════════════════════════════════════════════
-                // BOTH MODES — Notes field
-                // ══════════════════════════════════════════════════════════
+                // ── BOTH MODES: Notes ───────────────────────────────────────
                 TextFormField(
                   controller: _notesController,
                   maxLines: 3,
@@ -405,7 +382,6 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
 
                 const SizedBox(height: 24),
 
-                // ── Buttons ────────────────────────────────────────────────
                 Row(
                   children: [
                     Expanded(

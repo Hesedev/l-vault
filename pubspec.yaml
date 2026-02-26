@@ -37,6 +37,9 @@ dependencies:
   #PARA WEBVIEWS
   webview_flutter: ^4.10.0
 
+  #PREVIEW DE LINKS
+  any_link_preview: ^3.0.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
