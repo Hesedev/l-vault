@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:linkvault/features/bookmarks/pages/collection_detail_page.dart';
 import 'package:linkvault/features/collections/widgets/collections_filter_sheet.dart';
 import 'package:linkvault/features/collections/widgets/selection_app_bar.dart';
 
@@ -59,11 +60,9 @@ class CollectionsPage extends ConsumerWidget {
                   ? () {
                       collectionsAsync.whenData((collections) {
                         final id = selectedIds.first;
-
                         final collection = collections.firstWhere(
                           (c) => c.id == id,
                         );
-
                         showModalBottomSheet(
                           context: context,
                           isScrollControlled: true,
@@ -72,7 +71,6 @@ class CollectionsPage extends ConsumerWidget {
                           ),
                         );
                       });
-
                       selectionNotifier.clear();
                     }
                   : null,
@@ -101,7 +99,7 @@ class CollectionsPage extends ConsumerWidget {
                 showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
-                  builder: (_) => AddCollectionSheet(),
+                  builder: (_) => const AddCollectionSheet(),
                 );
               },
               child: const Icon(Icons.add),
@@ -119,7 +117,7 @@ class CollectionsPage extends ConsumerWidget {
                     .update((state) => state.copyWith(query: value));
               },
               decoration: InputDecoration(
-                hintText: "Search collections...",
+                hintText: 'Search collections...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(28),
@@ -165,6 +163,16 @@ class CollectionsPage extends ConsumerWidget {
                           onTap: () {
                             if (isSelectionMode) {
                               selectionNotifier.toggle(collection.id!);
+                            } else {
+                              // Navigate to collection detail
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => CollectionDetailPage(
+                                    collection: collection,
+                                  ),
+                                ),
+                              );
                             }
                           },
                         );

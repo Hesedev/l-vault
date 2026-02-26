@@ -28,7 +28,7 @@ class BookmarkModel {
       url: map['url'],
       notes: map['notes'],
       image: map['image'],
-      isFavorite: map['is_favorite'],
+      isFavorite: map['is_favorite'] ?? 0,
       collectionId: map['collection_id'],
       createdAt: map['created_at'],
     );
@@ -46,4 +46,30 @@ class BookmarkModel {
       'created_at': createdAt,
     };
   }
+
+  BookmarkModel copyWith({
+    int? id,
+    Object? title = _sentinel,
+    String? url,
+    Object? notes = _sentinel,
+    Object? image = _sentinel,
+    int? isFavorite,
+    Object? collectionId = _sentinel,
+    String? createdAt,
+  }) {
+    return BookmarkModel(
+      id: id ?? this.id,
+      title: title == _sentinel ? this.title : title as String?,
+      url: url ?? this.url,
+      notes: notes == _sentinel ? this.notes : notes as String?,
+      image: image == _sentinel ? this.image : image as String?,
+      isFavorite: isFavorite ?? this.isFavorite,
+      collectionId: collectionId == _sentinel
+          ? this.collectionId
+          : collectionId as int?,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  static const _sentinel = Object();
 }
