@@ -1,3 +1,5 @@
+// lib/core/app_shell.dart
+
 import 'package:flutter/material.dart';
 import '../features/collections/pages/collections_page.dart';
 
