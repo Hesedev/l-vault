@@ -24,45 +24,47 @@ class HomePage extends ConsumerWidget {
     final selectionCount = selectedIds.length;
     final isSelectionMode = selectionCount > 0;
 
+    // Resolve the single selected bookmark (for edit / copy)
+    final singleSelected = selectionCount == 1
+        ? bookmarksAsync.whenOrNull(
+            data: (list) => list.firstWhere((b) => b.id == selectedIds.first),
+          )
+        : null;
+
     return Scaffold(
       appBar: isSelectionMode
           ? BookmarkSelectionAppBar(
               count: selectionCount,
               onClear: selectionNotifier.clear,
-              onEdit: selectionCount == 1
+              urlToCopy: singleSelected?.url,
+              onEdit: singleSelected != null
                   ? () {
-                      bookmarksAsync.whenData((bookmarks) {
-                        final id = selectedIds.first;
-                        final bookmark = bookmarks.firstWhere(
-                          (b) => b.id == id,
-                        );
-                        selectionNotifier.clear();
-                        showDialog(
-                          context: context,
-                          builder: (_) =>
-                              AddBookmarkDialog(existingBookmark: bookmark),
-                        );
-                      });
+                      selectionNotifier.clear();
+                      showDialog(
+                        context: context,
+                        builder: (_) =>
+                            AddBookmarkDialog(existingBookmark: singleSelected),
+                      );
                     }
                   : null,
               onToggleFavorite: () async {
                 bookmarksAsync.whenData((bookmarks) async {
                   final repo = ref.read(bookmarkRepositoryProvider);
                   for (final id in selectedIds) {
-                    final bookmark = bookmarks.firstWhere((b) => b.id == id);
-                    await repo.toggleFavorite(bookmark);
+                    final b = bookmarks.firstWhere((b) => b.id == id);
+                    await repo.toggleFavorite(b);
                   }
                   ref.invalidate(allBookmarksProvider);
                   selectionNotifier.clear();
                 });
               },
               isFavorite: bookmarksAsync.whenOrNull(
-                data: (bookmarks) {
-                  final selected = bookmarks
+                data: (list) {
+                  final sel = list
                       .where((b) => selectedIds.contains(b.id))
                       .toList();
-                  if (selected.isEmpty) return null;
-                  return selected.every((b) => b.isFavorite == 1);
+                  if (sel.isEmpty) return null;
+                  return sel.every((b) => b.isFavorite == 1);
                 },
               ),
               onDelete: () async {
@@ -122,11 +124,9 @@ class HomePage extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
-              onChanged: (value) {
-                ref
-                    .read(bookmarkFilterProvider.notifier)
-                    .update((s) => s.copyWith(query: value));
-              },
+              onChanged: (value) => ref
+                  .read(bookmarkFilterProvider.notifier)
+                  .update((s) => s.copyWith(query: value)),
               decoration: InputDecoration(
                 hintText: 'Search bookmarks...',
                 prefixIcon: const Icon(Icons.search),
@@ -137,7 +137,6 @@ class HomePage extends ConsumerWidget {
               ),
             ),
           ),
-
           Expanded(
             child: bookmarksAsync.when(
               data: (bookmarks) {
@@ -164,23 +163,25 @@ class HomePage extends ConsumerWidget {
                         final bookmark = items[index - cursor];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: Consumer(
-                            builder: (context, ref, _) {
-                              final isSelected = selectedIds.contains(
-                                bookmark.id,
-                              );
-                              return BookmarkCard(
-                                bookmark: bookmark,
-                                isSelected: isSelected,
-                                onLongPress: () =>
-                                    selectionNotifier.toggle(bookmark.id!),
-                                onTap: () => _handleTap(
-                                  context: context,
-                                  bookmark: bookmark,
-                                  isSelectionMode: isSelectionMode,
-                                  selectionNotifier: selectionNotifier,
-                                ),
-                              );
+                          child: BookmarkCard(
+                            bookmark: bookmark,
+                            isSelected: selectedIds.contains(bookmark.id),
+                            onLongPress: () =>
+                                selectionNotifier.toggle(bookmark.id!),
+                            onTap: () {
+                              if (isSelectionMode) {
+                                selectionNotifier.toggle(bookmark.id!);
+                              } else {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => WebViewPage(
+                                      url: bookmark.url,
+                                      title: bookmark.title,
+                                    ),
+                                  ),
+                                );
+                              }
                             },
                           ),
                         );
@@ -200,37 +201,19 @@ class HomePage extends ConsumerWidget {
     );
   }
 
-  void _handleTap({
-    required BuildContext context,
-    required BookmarkModel bookmark,
-    required bool isSelectionMode,
-    required BookmarkSelectionNotifier selectionNotifier,
-  }) {
-    if (isSelectionMode) {
-      selectionNotifier.toggle(bookmark.id!);
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => WebViewPage(url: bookmark.url, title: bookmark.title),
-        ),
-      );
-    }
-  }
-
   Map<String, List<BookmarkModel>> _groupByDate(List<BookmarkModel> bookmarks) {
-    final Map<String, List<BookmarkModel>> grouped = {};
+    final grouped = <String, List<BookmarkModel>>{};
     for (final b in bookmarks) {
       grouped.putIfAbsent(_formatDate(b.createdAt), () => []).add(b);
     }
     return grouped;
   }
 
-  String _formatDate(String isoDate) {
+  String _formatDate(String iso) {
     try {
-      return DateFormat('MMMM d, yyyy').format(DateTime.parse(isoDate));
+      return DateFormat('MMMM d, yyyy').format(DateTime.parse(iso));
     } catch (_) {
-      return isoDate;
+      return iso;
     }
   }
 }

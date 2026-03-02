@@ -1,12 +1,14 @@
 // lib/features/bookmarks/widgets/bookmark_card.dart
 
-import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/bookmark_model.dart';
+import '../../collections/providers/collection_providers.dart';
 
-class BookmarkCard extends StatelessWidget {
+class BookmarkCard extends ConsumerWidget {
   final BookmarkModel bookmark;
   final bool isSelected;
   final VoidCallback onTap;
@@ -21,10 +23,27 @@ class BookmarkCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final hasImage = bookmark.image != null && bookmark.image!.isNotEmpty;
     final isRemoteImage = hasImage && bookmark.image!.startsWith('http');
+
+    // Resolve collection only if this bookmark belongs to one
+    final matchedCollection = bookmark.collectionId != null
+        ? ref
+              .watch(collectionsProvider)
+              .whenOrNull(
+                data: (list) {
+                  try {
+                    return list.firstWhere(
+                      (c) => c.id == bookmark.collectionId,
+                    );
+                  } catch (_) {
+                    return null;
+                  }
+                },
+              )
+        : null;
 
     return GestureDetector(
       onTap: onTap,
@@ -43,7 +62,17 @@ class BookmarkCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // URL bar
+            // ── Collection pill — bottom of card ─────────────────────────
+            if (matchedCollection != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                child: _CollectionPill(
+                  name: matchedCollection.name,
+                  colorHex: matchedCollection.color,
+                ),
+              ),
+
+            // ── URL bar ──────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
               child: Text(
@@ -59,9 +88,14 @@ class BookmarkCard extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Content row
+            // ── Content row ──────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              padding: EdgeInsets.fromLTRB(
+                12,
+                0,
+                12,
+                matchedCollection != null ? 8 : 12,
+              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -88,13 +122,13 @@ class BookmarkCard extends StatelessWidget {
 
                   if (hasImage) const SizedBox(width: 12),
 
-                  // Text info
+                  // Text
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (bookmark.title != null &&
-                            bookmark.title!.isNotEmpty)
+                            bookmark.title!.isNotEmpty) ...[
                           Text(
                             bookmark.title!,
                             maxLines: 2,
@@ -104,9 +138,8 @@ class BookmarkCard extends StatelessWidget {
                               fontSize: 14,
                             ),
                           ),
-                        if (bookmark.title != null &&
-                            bookmark.title!.isNotEmpty)
                           const SizedBox(height: 4),
+                        ],
                         Text(
                           _siteName(bookmark.url),
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -131,11 +164,15 @@ class BookmarkCard extends StatelessWidget {
                     ),
                   ),
 
-                  // Favorite icon
+                  // Favorite star
                   if (bookmark.isFavorite == 1)
                     Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: Icon(Icons.star, size: 16, color: Colors.amber),
+                      padding: const EdgeInsets.only(left: 8, top: 2),
+                      child: const Icon(
+                        Icons.star_rounded,
+                        size: 16,
+                        color: Colors.amber,
+                      ),
                     ),
                 ],
               ),
@@ -157,10 +194,56 @@ class BookmarkCard extends StatelessWidget {
 
   String _siteName(String url) {
     try {
-      final uri = Uri.parse(url);
-      return uri.host.replaceFirst('www.', '');
+      return Uri.parse(url).host.replaceFirst('www.', '');
     } catch (_) {
       return url;
+    }
+  }
+}
+
+class _CollectionPill extends StatelessWidget {
+  final String name;
+  final String? colorHex;
+
+  const _CollectionPill({required this.name, this.colorHex});
+
+  @override
+  Widget build(BuildContext context) {
+    final bg =
+        _parseColor(colorHex) ??
+        Theme.of(context).colorScheme.primary.withValues(alpha: 0.25);
+    final textColor = bg.computeLuminance() > 0.4
+        ? Colors.black87
+        : Colors.white;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: Text(
+        name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
+      ),
+    );
+  }
+
+  Color? _parseColor(String? hex) {
+    if (hex == null) return null;
+    try {
+      final buffer = StringBuffer();
+      if (hex.length == 7) buffer.write('ff');
+      buffer.write(hex.replaceFirst('#', ''));
+      return Color(int.parse(buffer.toString(), radix: 16));
+    } catch (_) {
+      return null;
     }
   }
 }
