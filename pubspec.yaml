@@ -40,6 +40,10 @@ dependencies:
   #PREVIEW DE LINKS
   any_link_preview: ^3.0.3
 
+  #PARA FUNCIONALIDAD DE RECIBIR ENLACES COMPARTIDOS DESDE OTRAS APLICACIONES
+  #receive_sharing_intent: ^1.6.4
+  share_handler: ^0.0.21
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

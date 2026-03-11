@@ -28,19 +28,16 @@ class MetadataService {
       final uri = Uri.parse(url);
       final host = uri.host.toLowerCase().replaceFirst('www.', '');
 
-      // ── 1. YouTube oEmbed ─────────────────────────────────────────────────
       if (host == 'youtube.com' || host == 'youtu.be') {
         dev.log('[MetadataService] → YouTube path');
         return await _fetchYouTube(url);
       }
 
-      // ── 2. Wikipedia REST API ─────────────────────────────────────────────
       if (host.contains('wikipedia.org')) {
         dev.log('[MetadataService] → Wikipedia path');
         return await _fetchWikipedia(uri);
       }
 
-      // ── 3. Generic scraping ───────────────────────────────────────────────
       dev.log('[MetadataService] → Generic path');
       return await _fetchGeneric(url);
     } catch (e, stack) {
@@ -49,14 +46,13 @@ class MetadataService {
     }
   }
 
-  // ─── YouTube oEmbed (no API key needed) ──────────────────────────────────
+  // ─── YouTube oEmbed ───────────────────────────────────────────────────────
   Future<LinkMetadata> _fetchYouTube(String url) async {
     try {
       final oembedUri = Uri.parse(
         'https://www.youtube.com/oembed'
         '?url=${Uri.encodeComponent(url)}&format=json',
       );
-      dev.log('[MetadataService] YouTube oEmbed URL: $oembedUri');
       final response = await http.get(oembedUri).timeout(_timeout);
       dev.log('[MetadataService] YouTube status: ${response.statusCode}');
 
@@ -89,7 +85,6 @@ class MetadataService {
         pathSegments: ['api', 'rest_v1', 'page', 'summary', article],
       );
 
-      dev.log('[MetadataService] Wikipedia API: $apiUri');
       final response = await http
           .get(apiUri, headers: {'Accept': 'application/json'})
           .timeout(_timeout);
@@ -111,43 +106,30 @@ class MetadataService {
     return const LinkMetadata();
   }
 
-  // ─── Generic via any_link_preview + Manual Scraping ────────────────────────
+  // ─── Generic via any_link_preview ────────────────────────────────────────
+  // any_link_preview already handles OG tags, Twitter Cards and JSON-LD
+  // internally and in all attribute orderings — no need to duplicate that
+  // logic with manual regex scraping.
   Future<LinkMetadata> _fetchGeneric(String url) async {
     const agents = [
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+          '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       'WhatsApp/2.21.12.21 A',
     ];
 
-    // Intento 1: Scraping manual (Busca etiquetas meta og: directamente en el HTML)
-    try {
-      dev.log('[MetadataService] Starting manual scrape...');
-      final response = await http.get(Uri.parse(url)).timeout(_timeout);
-      if (response.statusCode == 200) {
-        final body = response.body;
-
-        // Expresiones regulares simples para capturar tags og: sin dependencias extras
-        return LinkMetadata(
-          title: _clean(
-            _extractMeta(body, 'og:title') ?? _extractMeta(body, 'title'),
-          ),
-          imageUrl: _cleanImage(_extractMeta(body, 'og:image')),
-          description:
-              _extractMeta(body, 'og:description') ??
-              _extractMeta(body, 'description'),
-        );
-      }
-    } catch (e) {
-      dev.log('[MetadataService] Manual scrape error: $e');
-    }
-
-    // Intento 2: Paquete any_link_preview con diferentes User Agents
     for (final agent in agents) {
       try {
+        dev.log('[MetadataService] Trying agent: $agent');
         final meta = await AnyLinkPreview.getMetadata(
           link: url,
           cache: null,
           userAgent: agent,
         ).timeout(_timeout);
+
+        dev.log(
+          '[MetadataService] Result → title: ${meta?.title}, '
+          'image: ${meta?.image}',
+        );
 
         if (meta != null && (meta.title != null || meta.image != null)) {
           return LinkMetadata(
@@ -157,7 +139,7 @@ class MetadataService {
           );
         }
       } catch (e) {
-        dev.log('[MetadataService] any_link_preview error: $e');
+        dev.log('[MetadataService] Agent error: $e');
       }
     }
 
@@ -190,21 +172,6 @@ class MetadataService {
       return Uri.parse(url).host.replaceFirst('www.', '');
     } catch (_) {
       return url;
-    }
-  }
-
-  // Helper para extraer contenido de etiquetas meta
-  String? _extractMeta(String html, String property) {
-    try {
-      // Busca <meta property="og:title" content="Lo que sea"> o <meta name="description" content="...">
-      final regExp = RegExp(
-        'meta\\s+(?:property|name)=["\']$property["\']\\s+content=["\']([^"\']+)["\']',
-        caseSensitive: false,
-      );
-      final match = regExp.firstMatch(html);
-      return match?.group(1);
-    } catch (_) {
-      return null;
     }
   }
 }
