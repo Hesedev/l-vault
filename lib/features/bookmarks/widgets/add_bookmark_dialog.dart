@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:linkvault/features/collections/providers/collection_providers.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../data/models/bookmark_model.dart';
@@ -172,6 +173,7 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
     }
 
     ref.invalidate(allBookmarksProvider);
+    ref.invalidate(collectionsProvider);
     if (widget.collectionId != null) {
       ref.invalidate(bookmarksByCollectionProvider(widget.collectionId));
     }
@@ -202,6 +204,8 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
     final repo = ref.read(bookmarkRepositoryProvider);
     await repo.delete(widget.existingBookmark!.id!);
     ref.invalidate(allBookmarksProvider);
+    ref.invalidate(collectionsProvider);
+
     if (widget.collectionId != null) {
       ref.invalidate(bookmarksByCollectionProvider(widget.collectionId));
     }
