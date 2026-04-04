@@ -59,39 +59,12 @@ class AppDatabase {
       )
     ''');
 
-    await db.execute('''
-      CREATE TABLE tag (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE bookmark_tag (
-        bookmark_id INTEGER,
-        tag_id INTEGER,
-        PRIMARY KEY (bookmark_id, tag_id),
-        FOREIGN KEY(bookmark_id) REFERENCES bookmark(id)
-        ON DELETE CASCADE,
-        FOREIGN KEY(tag_id) REFERENCES tag(id)
-        ON DELETE CASCADE
-      )
-    ''');
-
     await db.execute(
       'CREATE INDEX idx_bookmark_collection ON bookmark(collection_id)',
     );
 
     await db.execute(
       'CREATE INDEX idx_bookmark_favorite ON bookmark(is_favorite)',
-    );
-
-    await db.execute(
-      'CREATE INDEX idx_bookmark_tag_bookmark ON bookmark_tag(bookmark_id)',
-    );
-
-    await db.execute(
-      'CREATE INDEX idx_bookmark_tag_tag ON bookmark_tag(tag_id)',
     );
   }
 
