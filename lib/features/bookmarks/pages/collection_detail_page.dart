@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/bookmark_model.dart';
 import '../../../data/models/collection_model.dart';
@@ -14,7 +15,6 @@ import '../widgets/add_bookmark_dialog.dart';
 import '../widgets/bookmark_card.dart';
 import '../widgets/bookmark_filter_sheet.dart';
 import '../widgets/bookmark_selection_app_bar.dart';
-import 'webview_page.dart';
 
 class CollectionDetailPage extends ConsumerWidget {
   final CollectionWithCount collection;
@@ -243,15 +243,21 @@ class CollectionDetailPage extends ConsumerWidget {
                         isSelected: selectedIds.contains(bookmark.id),
                         onLongPress: () =>
                             selectionNotifier.toggle(bookmark.id!),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => WebViewPage(
-                              url: bookmark.url,
-                              title: bookmark.title,
+                        onTap: () => 
+                          /* Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => WebViewPage(
+                                url: bookmark.url,
+                                title: bookmark.title,
+                              ),
                             ),
-                          ),
-                        ),
+                          ) */
+                          launchUrl(
+                            Uri.parse(bookmark.url),
+                            mode: LaunchMode.externalApplication, // abre el navegador del sistema
+                          )
+                        ,
                       ),
                     );
                   }, childCount: items.length),
@@ -392,7 +398,7 @@ class _BookmarkList extends StatelessWidget {
                         if (isSelectionMode) {
                           selectionNotifier.toggle(bookmark.id!);
                         } else {
-                          Navigator.push(
+                          /* Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => WebViewPage(
@@ -400,6 +406,10 @@ class _BookmarkList extends StatelessWidget {
                                 title: bookmark.title,
                               ),
                             ),
+                          ); */
+                          launchUrl(
+                            Uri.parse(bookmark.url),
+                            mode: LaunchMode.externalApplication, // abre el navegador del sistema
                           );
                         }
                       },

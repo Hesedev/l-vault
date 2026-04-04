@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/bookmark_model.dart';
 import '../providers/bookmark_providers.dart';
@@ -10,7 +11,6 @@ import '../widgets/add_bookmark_dialog.dart';
 import '../widgets/bookmark_card.dart';
 import '../widgets/bookmark_filter_sheet.dart';
 import '../widgets/bookmark_selection_app_bar.dart';
-import 'webview_page.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -172,7 +172,7 @@ class HomePage extends ConsumerWidget {
                               if (isSelectionMode) {
                                 selectionNotifier.toggle(bookmark.id!);
                               } else {
-                                Navigator.push(
+                                /* Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => WebViewPage(
@@ -180,6 +180,10 @@ class HomePage extends ConsumerWidget {
                                       title: bookmark.title,
                                     ),
                                   ),
+                                ); */
+                                launchUrl(
+                                  Uri.parse(bookmark.url),
+                                  mode: LaunchMode.externalApplication, // abre el navegador del sistema
                                 );
                               }
                             },

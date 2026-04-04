@@ -110,7 +110,7 @@ class BookmarkCard extends ConsumerWidget {
                             ? CachedNetworkImage(
                                 imageUrl: bookmark.image!,
                                 fit: BoxFit.cover,
-                                errorWidget: (_, __, ___) =>
+                                errorWidget: (_, _, _) =>
                                     _placeholder(context),
                               )
                             : Image.file(

@@ -269,7 +269,7 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
                                           _remoteImageUrl!,
                                           fit: BoxFit.cover,
                                           width: double.infinity,
-                                          errorBuilder: (_, __, ___) =>
+                                          errorBuilder: (_, _, _) =>
                                               const Center(
                                                 child: Icon(
                                                   Icons.broken_image,
