@@ -48,7 +48,7 @@ class CollectionDetailPage extends ConsumerWidget {
           )
         : null;
 
-    // ── Selection mode: plain Scaffold with normal AppBar at top ─────────────
+    // ── Selection mode ────────────────────────────────────────────────────────
     if (isSelectionMode) {
       return Scaffold(
         appBar: BookmarkSelectionAppBar(
@@ -74,15 +74,15 @@ class CollectionDetailPage extends ConsumerWidget {
                 final b = bookmarks.firstWhere((b) => b.id == id);
                 await repo.toggleFavorite(b);
               }
+              ref.invalidate(allBookmarksProvider);
               ref.invalidate(bookmarksByCollectionProvider(collectionId));
               selectionNotifier.clear();
             });
           },
           isFavorite: bookmarksAsync.whenOrNull(
             data: (list) {
-              final sel = list
-                  .where((b) => selectedIds.contains(b.id))
-                  .toList();
+              final sel =
+                  list.where((b) => selectedIds.contains(b.id)).toList();
               if (sel.isEmpty) return null;
               return sel.every((b) => b.isFavorite == 1);
             },
@@ -110,6 +110,8 @@ class CollectionDetailPage extends ConsumerWidget {
             for (final id in selectedIds) {
               await repo.delete(id);
             }
+            // Invalidar todos los providers relevantes
+            ref.invalidate(allBookmarksProvider);
             ref.invalidate(bookmarksByCollectionProvider(collectionId));
             ref.invalidate(collectionsProvider);
             selectionNotifier.clear();
@@ -129,7 +131,7 @@ class CollectionDetailPage extends ConsumerWidget {
       );
     }
 
-    // ── Normal mode: SliverAppBar with cover image ────────────────────────────
+    // ── Normal mode ───────────────────────────────────────────────────────────
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -188,7 +190,6 @@ class CollectionDetailPage extends ConsumerWidget {
             ],
           ),
 
-          // Search bar
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -210,12 +211,12 @@ class CollectionDetailPage extends ConsumerWidget {
             ),
           ),
 
-          // Bookmarks
           bookmarksAsync.when(
             data: (bookmarks) {
               if (bookmarks.isEmpty) {
                 return const SliverFillRemaining(
-                  child: Center(child: Text('No bookmarks in this collection')),
+                  child:
+                      Center(child: Text('No bookmarks in this collection')),
                 );
               }
 
@@ -230,45 +231,36 @@ class CollectionDetailPage extends ConsumerWidget {
               return SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                 sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final item = items[index];
-                    if (item is String) {
-                      return _DateHeader(date: item);
-                    }
-                    final bookmark = item as BookmarkModel;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: BookmarkCard(
-                        bookmark: bookmark,
-                        isSelected: selectedIds.contains(bookmark.id),
-                        onLongPress: () =>
-                            selectionNotifier.toggle(bookmark.id!),
-                        onTap: () => 
-                          /* Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => WebViewPage(
-                                url: bookmark.url,
-                                title: bookmark.title,
-                              ),
-                            ),
-                          ) */
-                          launchUrl(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final item = items[index];
+                      if (item is String) return _DateHeader(date: item);
+                      final bookmark = item as BookmarkModel;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: BookmarkCard(
+                          bookmark: bookmark,
+                          isSelected: selectedIds.contains(bookmark.id),
+                          onLongPress: () =>
+                              selectionNotifier.toggle(bookmark.id!),
+                          onTap: () => launchUrl(
                             Uri.parse(bookmark.url),
-                            mode: LaunchMode.externalApplication, // abre el navegador del sistema
-                          )
-                        ,
-                      ),
-                    );
-                  }, childCount: items.length),
+                            mode: LaunchMode.externalApplication,
+                          ),
+                        ),
+                      );
+                    },
+                    childCount: items.length,
+                  ),
                 ),
               );
             },
             loading: () => const SliverFillRemaining(
               child: Center(child: CircularProgressIndicator()),
             ),
-            error: (e, _) =>
-                SliverFillRemaining(child: Center(child: Text('Error: $e'))),
+            error: (e, _) => SliverFillRemaining(
+              child: Center(child: Text('Error: $e')),
+            ),
           ),
         ],
       ),
@@ -310,7 +302,8 @@ class CollectionDetailPage extends ConsumerWidget {
     );
   }
 
-  Map<String, List<BookmarkModel>> _groupByDate(List<BookmarkModel> bookmarks) {
+  Map<String, List<BookmarkModel>> _groupByDate(
+      List<BookmarkModel> bookmarks) {
     final grouped = <String, List<BookmarkModel>>{};
     for (final b in bookmarks) {
       grouped.putIfAbsent(_formatDate(b.createdAt), () => []).add(b);
@@ -327,7 +320,7 @@ class CollectionDetailPage extends ConsumerWidget {
   }
 }
 
-// ── Shared bookmark list body (used in selection mode) ───────────────────────
+// ── Bookmark list body (selection mode) ──────────────────────────────────────
 
 class _BookmarkList extends StatelessWidget {
   final AsyncValue<List<BookmarkModel>> bookmarksAsync;
@@ -371,8 +364,7 @@ class _BookmarkList extends StatelessWidget {
             data: (bookmarks) {
               if (bookmarks.isEmpty) {
                 return const Center(
-                  child: Text('No bookmarks in this collection'),
-                );
+                    child: Text('No bookmarks in this collection'));
               }
               final grouped = _groupByDate(bookmarks);
               final sections = grouped.keys.toList();
@@ -393,32 +385,16 @@ class _BookmarkList extends StatelessWidget {
                     child: BookmarkCard(
                       bookmark: bookmark,
                       isSelected: selectedIds.contains(bookmark.id),
-                      onLongPress: () => selectionNotifier.toggle(bookmark.id!),
-                      onTap: () {
-                        if (isSelectionMode) {
-                          selectionNotifier.toggle(bookmark.id!);
-                        } else {
-                          /* Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => WebViewPage(
-                                url: bookmark.url,
-                                title: bookmark.title,
-                              ),
-                            ),
-                          ); */
-                          launchUrl(
-                            Uri.parse(bookmark.url),
-                            mode: LaunchMode.externalApplication, // abre el navegador del sistema
-                          );
-                        }
-                      },
+                      onLongPress: () =>
+                          selectionNotifier.toggle(bookmark.id!),
+                      onTap: () => selectionNotifier.toggle(bookmark.id!),
                     ),
                   );
                 },
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () =>
+                const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Error: $e')),
           ),
         ),
@@ -426,7 +402,8 @@ class _BookmarkList extends StatelessWidget {
     );
   }
 
-  Map<String, List<BookmarkModel>> _groupByDate(List<BookmarkModel> bookmarks) {
+  Map<String, List<BookmarkModel>> _groupByDate(
+      List<BookmarkModel> bookmarks) {
     final grouped = <String, List<BookmarkModel>>{};
     for (final b in bookmarks) {
       grouped.putIfAbsent(_formatDate(b.createdAt), () => []).add(b);
@@ -454,9 +431,9 @@ class _DateHeader extends StatelessWidget {
       child: Text(
         date,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).hintColor,
-          fontWeight: FontWeight.w500,
-        ),
+              color: Theme.of(context).hintColor,
+              fontWeight: FontWeight.w500,
+            ),
         textAlign: TextAlign.center,
       ),
     );

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/bookmark_model.dart';
+import '../../collections/providers/collection_providers.dart';
 import '../providers/bookmark_providers.dart';
 import '../widgets/add_bookmark_dialog.dart';
 import '../widgets/bookmark_card.dart';
@@ -27,7 +28,8 @@ class HomePage extends ConsumerWidget {
     // Resolve the single selected bookmark (for edit / copy)
     final singleSelected = selectionCount == 1
         ? bookmarksAsync.whenOrNull(
-            data: (list) => list.firstWhere((b) => b.id == selectedIds.first),
+            data: (list) =>
+                list.firstWhere((b) => b.id == selectedIds.first),
           )
         : null;
 
@@ -42,8 +44,9 @@ class HomePage extends ConsumerWidget {
                       selectionNotifier.clear();
                       showDialog(
                         context: context,
-                        builder: (_) =>
-                            AddBookmarkDialog(existingBookmark: singleSelected),
+                        builder: (_) => AddBookmarkDialog(
+                          existingBookmark: singleSelected,
+                        ),
                       );
                     }
                   : null,
@@ -60,9 +63,8 @@ class HomePage extends ConsumerWidget {
               },
               isFavorite: bookmarksAsync.whenOrNull(
                 data: (list) {
-                  final sel = list
-                      .where((b) => selectedIds.contains(b.id))
-                      .toList();
+                  final sel =
+                      list.where((b) => selectedIds.contains(b.id)).toList();
                   if (sel.isEmpty) return null;
                   return sel.every((b) => b.isFavorite == 1);
                 },
@@ -91,6 +93,7 @@ class HomePage extends ConsumerWidget {
                   await repo.delete(id);
                 }
                 ref.invalidate(allBookmarksProvider);
+                ref.invalidate(collectionsProvider);
                 selectionNotifier.clear();
               },
             )
@@ -172,15 +175,6 @@ class HomePage extends ConsumerWidget {
                               if (isSelectionMode) {
                                 selectionNotifier.toggle(bookmark.id!);
                               } else {
-                                /* Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => WebViewPage(
-                                      url: bookmark.url,
-                                      title: bookmark.title,
-                                    ),
-                                  ),
-                                ); */
                                 launchUrl(
                                   Uri.parse(bookmark.url),
                                   mode: LaunchMode.externalApplication, // abre el navegador del sistema
@@ -196,7 +190,8 @@ class HomePage extends ConsumerWidget {
                   },
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
             ),
           ),
@@ -205,7 +200,8 @@ class HomePage extends ConsumerWidget {
     );
   }
 
-  Map<String, List<BookmarkModel>> _groupByDate(List<BookmarkModel> bookmarks) {
+  Map<String, List<BookmarkModel>> _groupByDate(
+      List<BookmarkModel> bookmarks) {
     final grouped = <String, List<BookmarkModel>>{};
     for (final b in bookmarks) {
       grouped.putIfAbsent(_formatDate(b.createdAt), () => []).add(b);
@@ -233,9 +229,9 @@ class _DateHeader extends StatelessWidget {
       child: Text(
         date,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).hintColor,
-          fontWeight: FontWeight.w500,
-        ),
+              color: Theme.of(context).hintColor,
+              fontWeight: FontWeight.w500,
+            ),
         textAlign: TextAlign.center,
       ),
     );

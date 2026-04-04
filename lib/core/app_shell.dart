@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../features/bookmarks/pages/home_page.dart';
 import '../features/collections/pages/collections_page.dart';
+import '../features/settings/pages/settings_page.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -17,7 +18,7 @@ class _AppShellState extends State<AppShell> {
   final _pages = const [
     HomePage(),
     CollectionsPage(),
-    Placeholder(), // Settings (later)
+    SettingsPage(),
   ];
 
   @override
@@ -39,9 +40,8 @@ class _AppShellState extends State<AppShell> {
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           child: BottomNavigationBar(
-            backgroundColor: Theme.of(
-              context,
-            ).bottomNavigationBarTheme.backgroundColor,
+            backgroundColor:
+                Theme.of(context).bottomNavigationBarTheme.backgroundColor,
             elevation: 0,
             currentIndex: _currentIndex,
             onTap: (index) => setState(() => _currentIndex = index),

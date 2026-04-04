@@ -44,6 +44,10 @@ dependencies:
   #receive_sharing_intent: ^1.6.4
   share_handler: ^0.0.21
 
+  #PARA EXPORTAR E IMPORTAR BASE DE DATOS EN FORMATO ZIP
+  archive: ^3.6.1
+  file_picker: ^8.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

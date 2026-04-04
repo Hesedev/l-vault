@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:linkvault/features/bookmarks/pages/collection_detail_page.dart';
+import 'package:linkvault/features/bookmarks/providers/bookmark_providers.dart';
 import 'package:linkvault/features/collections/widgets/collections_filter_sheet.dart';
 import 'package:linkvault/features/collections/widgets/selection_app_bar.dart';
 
@@ -53,7 +54,9 @@ class CollectionsPage extends ConsumerWidget {
                 for (final id in selectedIds) {
                   await repo.delete(id);
                 }
-                selectionNotifier.clear();
+                 // Invalidar todos los providers relevantes
+                selectionNotifier.clear();     
+                ref.invalidate(allBookmarksProvider);
                 ref.invalidate(collectionsProvider);
               },
               onEdit: selectionCount == 1

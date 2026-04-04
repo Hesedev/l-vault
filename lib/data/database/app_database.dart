@@ -20,12 +20,11 @@ class AppDatabase {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2, // ← subido de 1 a 2
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
       onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
     );
   }
 
@@ -55,7 +54,7 @@ class AppDatabase {
         collection_id INTEGER,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
         FOREIGN KEY(collection_id) REFERENCES collection(id)
-        ON DELETE SET NULL
+        ON DELETE CASCADE
       )
     ''');
 
@@ -66,21 +65,6 @@ class AppDatabase {
     await db.execute(
       'CREATE INDEX idx_bookmark_favorite ON bookmark(is_favorite)',
     );
-  }
-
-  // =============================
-  // MIGRACIONES FUTURAS
-  // =============================
-
-  static Future<void> _onUpgrade(
-    Database db,
-    int oldVersion,
-    int newVersion,
-  ) async {
-    if (oldVersion < 2) {
-      // ejemplo futuro:
-      // await db.execute("ALTER TABLE bookmark ADD COLUMN new_field TEXT");
-    }
   }
 
   // =============================
