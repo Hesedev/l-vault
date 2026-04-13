@@ -10,7 +10,7 @@ class CollectionCard extends StatelessWidget {
   final String? imagePath;
   final bool isSelected;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
+  final VoidCallback? onLongPress; // ahora opcional
   final int bookmarkCount;
 
   const CollectionCard({
@@ -21,7 +21,7 @@ class CollectionCard extends StatelessWidget {
     required this.imagePath,
     required this.isSelected,
     required this.onTap,
-    required this.onLongPress,
+    this.onLongPress, // opcional
     required this.bookmarkCount,
   });
 
@@ -31,17 +31,18 @@ class CollectionCard extends StatelessWidget {
         ? _hexToColor(colorHex!)
         : Theme.of(context).colorScheme.surface;
 
-    // Si el color es personalizado (no null), siempre texto blanco
-    // porque todos los colores de la paleta son oscuros.
-    // Si es null (predeterminado), el texto sigue el color del tema:
-    // blanco en oscuro, negro en claro.
-    final Color textColor = colorHex != null
-        ? Colors.white
-        : Theme.of(context).colorScheme.onSurface;
+    // Calcula si el color de fondo es claro u oscuro
+    final bool isLightBackground = colorHex != null
+        ? backgroundColor.computeLuminance() > 0.3
+        : Theme.of(context).brightness == Brightness.light;
 
-    final Color subtitleColor = colorHex != null
-        ? Colors.white70
-        : Theme.of(context).hintColor;
+    final Color textColor = isLightBackground
+        ? Colors.black87
+        : Colors.white;
+
+    final Color subtitleColor = isLightBackground
+        ? Colors.black54
+        : Colors.white70;
 
     return GestureDetector(
       onTap: onTap,
@@ -99,7 +100,7 @@ class CollectionCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '$bookmarkCount bookmarks',
+                        '$bookmarkCount ${bookmarkCount == 1 ? 'item' : 'items'}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -118,14 +119,21 @@ class CollectionCard extends StatelessWidget {
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.4),
+                  color: Colors.black.withValues(alpha: 0.45),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Center(
-                  child: Icon(
-                    Icons.check_circle,
-                    size: 40,
-                    color: Colors.white,
+                child: Center(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(6),
+                    child: const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                   ),
                 ),
               ),

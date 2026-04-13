@@ -1,11 +1,10 @@
 // lib/features/bookmarks/pages/save_shared_link_page.dart
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/bookmark_model.dart';
-import '../../../data/models/collection_model.dart';
+import '../../collections/widgets/collection_card.dart';
 import '../../../services/metadata_service.dart';
 import '../../collections/providers/collection_providers.dart';
 import '../../collections/widgets/add_collection_sheet.dart';
@@ -78,26 +77,25 @@ class _SaveSharedLinkPageState extends ConsumerState<SaveSharedLinkPage> {
     if (mounted) Navigator.pop(context);
   }
 
+  Future<void> _openAddCollection() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const AddCollectionSheet(),
+    );
+    ref.invalidate(collectionsProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final collectionsAsync = ref.watch(collectionsProvider);
-
+  final collectionsAsync = ref.watch(filteredCollectionsProvider);
+  
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(title: const Text('Save link')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => const AddCollectionSheet(),
-          );
-          ref.invalidate(collectionsProvider);
-        },
-        child: const Icon(Icons.add),
-      ),
+      // FAB eliminado — el botón + se mueve junto al buscador
       body: Column(
         children: [
           // ── Collections picker ───────────────────────────────────────────
@@ -106,40 +104,63 @@ class _SaveSharedLinkPageState extends ConsumerState<SaveSharedLinkPage> {
               data: (collections) {
                 if (collections.isEmpty) {
                   return Center(
-                    child: Text(
-                      'No collections yet.\nTap + to create one.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.hintColor,
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'No collections yet.',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.hintColor,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          onPressed: _openAddCollection,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Create one'),
+                        ),
+                      ],
                     ),
                   );
                 }
 
                 return Column(
                   children: [
-                    // Search
+                    // Search + botón añadir
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: TextField(
-                        onChanged: (value) => ref
-                            .read(collectionFilterProvider.notifier)
-                            .update((s) => s.copyWith(query: value)),
-                        decoration: InputDecoration(
-                          hintText: 'Search collections...',
-                          prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(28),
-                            borderSide: BorderSide.none,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              onChanged: (value) => ref
+                                  .read(collectionFilterProvider.notifier)
+                                  .update((s) => s.copyWith(query: value)),
+                              decoration: InputDecoration(
+                                hintText: 'Search collections...',
+                                prefixIcon: const Icon(Icons.search),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(28),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          IconButton.filled(
+                            onPressed: _openAddCollection,
+                            icon: const Icon(Icons.add),
+                            tooltip: 'New collection',
+                          ),
+                        ],
                       ),
                     ),
 
                     // Grid
                     Expanded(
                       child: GridView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
@@ -151,14 +172,19 @@ class _SaveSharedLinkPageState extends ConsumerState<SaveSharedLinkPage> {
                         itemBuilder: (context, index) {
                           final col = collections[index];
                           final isSelected = _selectedCollectionId == col.id;
-                          return _CollectionTile(
-                            collection: col,
+                          return CollectionCard(
+                            id: col.id!,
+                            name: col.name,
+                            colorHex: col.color,
+                            imagePath: col.coverImage,
                             isSelected: isSelected,
+                            bookmarkCount: col.bookmarkCount,
                             onTap: () => setState(() {
-                              _selectedCollectionId = isSelected
-                                  ? null
-                                  : col.id;
+                              _selectedCollectionId =
+                                  isSelected ? null : col.id;
                             }),
+                            // onLongPress omitido intencionalmente:
+                            // en esta pantalla no aplica edición/borrado
                           );
                         },
                       ),
@@ -270,129 +296,5 @@ class _SaveSharedLinkPageState extends ConsumerState<SaveSharedLinkPage> {
         ],
       ),
     );
-  }
-}
-
-// ── Collection tile ───────────────────────────────────────────────────────────
-
-class _CollectionTile extends StatelessWidget {
-  final CollectionWithCount collection;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _CollectionTile({
-    required this.collection,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bg = _parseColor(collection.color) ?? theme.colorScheme.surface;
-    final hasImage = collection.coverImage?.isNotEmpty == true;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        children: [
-          // Card
-          Container(
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20),
-                    ),
-                    child: hasImage
-                        ? Image.file(
-                            File(collection.coverImage!),
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          )
-                        : Container(
-                            width: double.infinity,
-                            color: Colors.black.withValues(alpha: 0.2),
-                            child: const Icon(
-                              Icons.image,
-                              size: 40,
-                              color: Colors.white54,
-                            ),
-                          ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        collection.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        '${collection.bookmarkCount} '
-                        '${collection.bookmarkCount == 1 ? 'item' : 'items'}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.hintColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Selection overlay
-          if (isSelected)
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    padding: const EdgeInsets.all(6),
-                    child: const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Color? _parseColor(String? hex) {
-    if (hex == null) return null;
-    try {
-      final buffer = StringBuffer();
-      if (hex.length == 7) buffer.write('ff');
-      buffer.write(hex.replaceFirst('#', ''));
-      return Color(int.parse(buffer.toString(), radix: 16));
-    } catch (_) {
-      return null;
-    }
   }
 }

@@ -25,10 +25,6 @@ class MetadataService {
     'youtube.com':      'https://www.youtube.com/oembed',
     'youtu.be':         'https://www.youtube.com/oembed',
     'vimeo.com':        'https://vimeo.com/api/oembed.json',
-    'tiktok.com':       'https://www.tiktok.com/oembed',
-    'open.spotify.com': 'https://open.spotify.com/oembed',
-    'twitter.com':      'https://publish.twitter.com/oembed',
-    'x.com':            'https://publish.twitter.com/oembed',
   };
 
   Future<LinkMetadata> fetch(String rawUrl) async {
