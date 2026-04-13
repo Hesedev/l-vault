@@ -48,6 +48,14 @@ class CollectionDetailPage extends ConsumerWidget {
           )
         : null;
 
+    // El overlay de la imagen de portada se adapta al tema:
+    // oscuro → negro semitransparente, claro → blanco semitransparente.
+    // Esto garantiza que el texto y los iconos del AppBar sean legibles
+    // en ambos temas independientemente de la imagen.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final overlayColor = isDark ? Colors.black54 : Colors.white38;
+    final gradientEnd = isDark ? Colors.black54 : Colors.white60;
+
     // ── Selection mode ────────────────────────────────────────────────────────
     if (isSelectionMode) {
       return Scaffold(
@@ -110,7 +118,6 @@ class CollectionDetailPage extends ConsumerWidget {
             for (final id in selectedIds) {
               await repo.delete(id);
             }
-            // Invalidar todos los providers relevantes
             ref.invalidate(allBookmarksProvider);
             ref.invalidate(bookmarksByCollectionProvider(collectionId));
             ref.invalidate(collectionsProvider);
@@ -138,12 +145,25 @@ class CollectionDetailPage extends ConsumerWidget {
           SliverAppBar(
             expandedHeight: hasImage ? 200 : 120,
             pinned: true,
+            // iconTheme fuerza que los iconos del AppBar sean siempre blancos
+            // sobre imagen, y usa el color del tema cuando no hay imagen
+            iconTheme: hasImage
+                ? const IconThemeData(color: Colors.white)
+                : IconThemeData(
+                    color: Theme.of(context).appBarTheme.foregroundColor,
+                  ),
+            foregroundColor: hasImage
+                ? Colors.white
+                : Theme.of(context).appBarTheme.foregroundColor,
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
                 collection.name,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  shadows: [Shadow(color: Colors.black45, blurRadius: 8)],
+                  color: hasImage ? Colors.white : null,
+                  shadows: hasImage
+                      ? const [Shadow(color: Colors.black45, blurRadius: 8)]
+                      : null,
                 ),
               ),
               background: hasImage
@@ -154,12 +174,31 @@ class CollectionDetailPage extends ConsumerWidget {
                           File(collection.coverImage!),
                           fit: BoxFit.cover,
                         ),
+                        // Overlay superior — garantiza que los iconos
+                        // del AppBar sean legibles independientemente
+                        // de los colores de la imagen
                         Container(
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Colors.transparent, Colors.black54],
+                              end: Alignment.center,
+                              colors: [
+                                Colors.black54,
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Overlay inferior — da profundidad al título
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.center,
+                              colors: [
+                                gradientEnd,
+                                Colors.transparent,
+                              ],
                             ),
                           ),
                         ),
@@ -215,8 +254,7 @@ class CollectionDetailPage extends ConsumerWidget {
             data: (bookmarks) {
               if (bookmarks.isEmpty) {
                 return const SliverFillRemaining(
-                  child:
-                      Center(child: Text('No bookmarks in this collection')),
+                  child: Center(child: Text('No bookmarks in this collection')),
                 );
               }
 
@@ -274,8 +312,10 @@ class CollectionDetailPage extends ConsumerWidget {
     );
   }
 
+  // Fondo de color para colecciones sin imagen.
+  // Si color es null, usa el surface del tema — siempre adaptado al tema actual.
   Widget _coloredBackground(BuildContext context, String? colorHex) {
-    Color color;
+    final Color color;
     if (colorHex != null) {
       try {
         final buffer = StringBuffer();
@@ -283,11 +323,13 @@ class CollectionDetailPage extends ConsumerWidget {
         buffer.write(colorHex.replaceFirst('#', ''));
         color = Color(int.parse(buffer.toString(), radix: 16));
       } catch (_) {
-        color = Theme.of(context).colorScheme.surface;
+        return Container(color: Theme.of(context).colorScheme.surface);
       }
     } else {
+      // null = predeterminado del tema
       color = Theme.of(context).colorScheme.surface;
     }
+
     return Container(
       color: color,
       child: Container(
@@ -393,8 +435,7 @@ class _BookmarkList extends StatelessWidget {
                 },
               );
             },
-            loading: () =>
-                const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Error: $e')),
           ),
         ),

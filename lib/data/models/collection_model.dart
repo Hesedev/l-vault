@@ -35,22 +35,6 @@ class CollectionModel {
     };
   }
 
-  /* CollectionModel copyWith({
-    int? id,
-    String? name,
-    String? color,
-    String? coverImage,
-    String? createdAt,
-  }) {
-    return CollectionModel(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      color: color ?? this.color,
-      coverImage: coverImage ?? this.coverImage,
-      createdAt: createdAt ?? this.createdAt,
-    );
-  } */
-
   CollectionModel copyWith({
     int? id,
     String? name,

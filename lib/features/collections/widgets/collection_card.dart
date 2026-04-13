@@ -31,6 +31,18 @@ class CollectionCard extends StatelessWidget {
         ? _hexToColor(colorHex!)
         : Theme.of(context).colorScheme.surface;
 
+    // Si el color es personalizado (no null), siempre texto blanco
+    // porque todos los colores de la paleta son oscuros.
+    // Si es null (predeterminado), el texto sigue el color del tema:
+    // blanco en oscuro, negro en claro.
+    final Color textColor = colorHex != null
+        ? Colors.white
+        : Theme.of(context).colorScheme.onSurface;
+
+    final Color subtitleColor = colorHex != null
+        ? Colors.white70
+        : Theme.of(context).hintColor;
+
     return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
@@ -57,7 +69,7 @@ class CollectionCard extends StatelessWidget {
                             fit: BoxFit.cover,
                           )
                         : Container(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             child: const Center(
                               child: Icon(
                                 Icons.image,
@@ -81,8 +93,9 @@ class CollectionCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -90,8 +103,8 @@ class CollectionCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).hintColor,
-                        ),
+                              color: subtitleColor,
+                            ),
                       ),
                     ],
                   ),
@@ -105,7 +118,7 @@ class CollectionCard extends StatelessWidget {
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Center(

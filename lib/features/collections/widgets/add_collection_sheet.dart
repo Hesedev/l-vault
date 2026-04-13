@@ -24,6 +24,8 @@ class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
   final _nameController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
 
+  // null = color predeterminado del tema (se guarda como null en DB)
+  // cualquier otro valor = color personalizado elegido por el usuario
   String? _selectedColor;
   File? _selectedImage;
   bool _isSaving = false;
@@ -42,6 +44,7 @@ class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
 
     if (existing != null) {
       _nameController.text = existing.name;
+      // Si color es null en DB, _selectedColor queda null (predeterminado)
       _selectedColor = existing.color;
 
       if (existing.coverImage != null) {
@@ -74,12 +77,11 @@ class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
 
     final repo = ref.read(collectionRepositoryProvider);
 
-    final defaultColorHex = _colorToHex(Theme.of(context).colorScheme.surface);
-
-    final colorToSave = _selectedColor ?? defaultColorHex;
+    // null = color predeterminado, que en la UI se resolverá como
+    // Theme.of(context).colorScheme.surface — siempre adaptado al tema actual
+    final colorToSave = _selectedColor;
 
     if (widget.existingCollection != null) {
-      // UPDATE
       await repo.update(
         widget.existingCollection!.copyWith(
           name: _nameController.text.trim(),
@@ -88,7 +90,6 @@ class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
         ),
       );
     } else {
-      // INSERT
       await repo.insert(
         CollectionModel(
           name: _nameController.text.trim(),
@@ -106,10 +107,10 @@ class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final defaultCardColor = Theme.of(context).colorScheme.surface;
-
-    final List<String> colors = [
-      _colorToHex(defaultCardColor), // primer color dinámico
+    // El primer "color" de la paleta representa el predeterminado del tema.
+    // Se muestra visualmente como el color actual del surface, pero se guarda como null.
+    final List<String?> colors = [
+      null,        // predeterminado — siempre se adapta al tema
       '#FF0000',
       '#C2185B',
       '#3F51B5',
@@ -142,9 +143,9 @@ class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
                 widget.existingCollection == null
                     ? "Add collection"
                     : "Edit collection",
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
 
               const SizedBox(height: 20),
@@ -174,7 +175,6 @@ class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
                             ),
                     ),
                   ),
-
                   if (_selectedImage != null)
                     Positioned(
                       right: 8,
@@ -184,13 +184,11 @@ class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
                           try {
                             await _selectedImage!.delete();
                           } catch (_) {}
-                          setState(() {
-                            _selectedImage = null;
-                          });
+                          setState(() => _selectedImage = null);
                         },
                         child: Container(
                           padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: Colors.black54,
                             shape: BoxShape.circle,
                           ),
@@ -231,20 +229,20 @@ class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
               Wrap(
                 spacing: 12,
                 children: colors.map((colorHex) {
-                  final color = _hexToColor(colorHex);
+                  // El color visual del círculo: null → surface del tema actual
+                  final displayColor = colorHex != null
+                      ? _hexToColor(colorHex)
+                      : Theme.of(context).colorScheme.surface;
+
                   final isSelected = _selectedColor == colorHex;
 
                   return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedColor = colorHex;
-                      });
-                    },
+                    onTap: () => setState(() => _selectedColor = colorHex),
                     child: Container(
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: color,
+                        color: displayColor,
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: isSelected
@@ -266,12 +264,14 @@ class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
                     child: FilledButton(
                       onPressed: () => Navigator.pop(context),
                       style: FilledButton.styleFrom(
-                        backgroundColor: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.08),
-                        foregroundColor: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.8),
+                        backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.08),
+                        foregroundColor: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(100),
                         ),
@@ -285,7 +285,8 @@ class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
                     child: FilledButton(
                       onPressed: _isSaving ? null : _save,
                       style: FilledButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        backgroundColor:
+                            Theme.of(context).colorScheme.primary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(100),
@@ -318,11 +319,5 @@ class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
     if (hex.length == 7) buffer.write('ff');
     buffer.write(hex.replaceFirst('#', ''));
     return Color(int.parse(buffer.toString(), radix: 16));
-  }
-
-  String _colorToHex(Color color) {
-    final argb = color.toARGB32();
-    final rgb = argb & 0x00FFFFFF; // eliminamos el alpha
-    return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
   }
 }
