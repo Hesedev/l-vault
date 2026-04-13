@@ -20,6 +20,17 @@ class LinkMetadata {
 class MetadataService {
   static const _timeout = Duration(seconds: 12);
 
+  // Proveedores oEmbed: host (sin www) → base del endpoint
+  static const _oembedProviders = {
+    'youtube.com':      'https://www.youtube.com/oembed',
+    'youtu.be':         'https://www.youtube.com/oembed',
+    'vimeo.com':        'https://vimeo.com/api/oembed.json',
+    'tiktok.com':       'https://www.tiktok.com/oembed',
+    'open.spotify.com': 'https://open.spotify.com/oembed',
+    'twitter.com':      'https://publish.twitter.com/oembed',
+    'x.com':            'https://publish.twitter.com/oembed',
+  };
+
   Future<LinkMetadata> fetch(String rawUrl) async {
     final url = _ensureScheme(rawUrl.trim());
     dev.log('[MetadataService] Fetching: $url');
@@ -28,16 +39,20 @@ class MetadataService {
       final uri = Uri.parse(url);
       final host = uri.host.toLowerCase().replaceFirst('www.', '');
 
-      if (host == 'youtube.com' || host == 'youtu.be') {
-        dev.log('[MetadataService] → YouTube path');
-        return await _fetchYouTube(url);
+      // 1. Proveedores oEmbed conocidos
+      final oembedBase = _oembedProviders[host];
+      if (oembedBase != null) {
+        dev.log('[MetadataService] → oEmbed path ($host)');
+        return await _fetchOEmbed(url, oembedBase);
       }
 
+      // 2. Wikipedia (cualquier idioma)
       if (host.contains('wikipedia.org')) {
         dev.log('[MetadataService] → Wikipedia path');
         return await _fetchWikipedia(uri);
       }
 
+      // 3. Genérico via any_link_preview
       dev.log('[MetadataService] → Generic path');
       return await _fetchGeneric(url);
     } catch (e, stack) {
@@ -46,15 +61,14 @@ class MetadataService {
     }
   }
 
-  // ─── YouTube oEmbed ───────────────────────────────────────────────────────
-  Future<LinkMetadata> _fetchYouTube(String url) async {
+  // ─── oEmbed genérico (YouTube, Vimeo, TikTok, Spotify, Twitter…) ─────────
+  Future<LinkMetadata> _fetchOEmbed(String url, String providerBase) async {
     try {
       final oembedUri = Uri.parse(
-        'https://www.youtube.com/oembed'
-        '?url=${Uri.encodeComponent(url)}&format=json',
+        '$providerBase?url=${Uri.encodeComponent(url)}&format=json',
       );
       final response = await http.get(oembedUri).timeout(_timeout);
-      dev.log('[MetadataService] YouTube status: ${response.statusCode}');
+      dev.log('[MetadataService] oEmbed status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -64,7 +78,7 @@ class MetadataService {
         );
       }
     } catch (e) {
-      dev.log('[MetadataService] YouTube error: $e');
+      dev.log('[MetadataService] oEmbed error: $e');
     }
     return const LinkMetadata();
   }
@@ -107,9 +121,6 @@ class MetadataService {
   }
 
   // ─── Generic via any_link_preview ────────────────────────────────────────
-  // any_link_preview already handles OG tags, Twitter Cards and JSON-LD
-  // internally and in all attribute orderings — no need to duplicate that
-  // logic with manual regex scraping.
   Future<LinkMetadata> _fetchGeneric(String url) async {
     const agents = [
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '

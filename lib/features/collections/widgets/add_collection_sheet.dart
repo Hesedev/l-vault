@@ -20,10 +20,10 @@ class AddCollectionSheet extends ConsumerStatefulWidget {
 }
 
 class _AddCollectionSheetState extends ConsumerState<AddCollectionSheet> {
+  // Campos del Formulario
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
-
   // null = color predeterminado del tema (se guarda como null en DB)
   // cualquier otro valor = color personalizado elegido por el usuario
   String? _selectedColor;
