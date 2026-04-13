@@ -17,13 +17,28 @@ import '../widgets/bookmark_filter_sheet.dart';
 import '../widgets/bookmark_selection_app_bar.dart';
 
 class CollectionDetailPage extends ConsumerWidget {
-  final CollectionWithCount collection;
+  final CollectionModel collection;
 
   const CollectionDetailPage({super.key, required this.collection});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final collectionId = collection.id!;
+
+    // Leer la colección en vivo desde el provider para reflejar ediciones
+    // en tiempo real (imagen, color, nombre) sin necesidad de volver a navegar.
+    final liveCollection = ref.watch(collectionsProvider).whenOrNull(
+          data: (list) {
+            try {
+              return list.firstWhere((c) => c.id == collectionId);
+            } catch (_) {
+              return null;
+            }
+          },
+        );
+    // Fallback al parámetro original mientras el provider carga
+    final col = liveCollection ?? collection;
+
     final bookmarksAsync = ref.watch(
       filteredCollectionBookmarksProvider(collectionId),
     );
@@ -33,8 +48,7 @@ class CollectionDetailPage extends ConsumerWidget {
     final selectionCount = selectedIds.length;
     final isSelectionMode = selectionCount > 0;
 
-    final hasImage =
-        collection.coverImage != null && collection.coverImage!.isNotEmpty;
+    final hasImage = col.coverImage != null && col.coverImage!.isNotEmpty;
 
     final singleSelected = selectionCount == 1
         ? bookmarksAsync.whenOrNull(
@@ -48,12 +62,7 @@ class CollectionDetailPage extends ConsumerWidget {
           )
         : null;
 
-    // El overlay de la imagen de portada se adapta al tema:
-    // oscuro → negro semitransparente, claro → blanco semitransparente.
-    // Esto garantiza que el texto y los iconos del AppBar sean legibles
-    // en ambos temas independientemente de la imagen.
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final overlayColor = isDark ? Colors.black54 : Colors.white38;
     final gradientEnd = isDark ? Colors.black54 : Colors.white60;
 
     // ── Selection mode ────────────────────────────────────────────────────────
@@ -130,7 +139,7 @@ class CollectionDetailPage extends ConsumerWidget {
           selectionNotifier: selectionNotifier,
           isSelectionMode: true,
           collectionId: collectionId,
-          collectionName: collection.name,
+          collectionName: col.name,
           searchQuery: (value) => ref
               .read(collectionBookmarkFilterProvider(collectionId).notifier)
               .update((s) => s.copyWith(query: value)),
@@ -145,8 +154,6 @@ class CollectionDetailPage extends ConsumerWidget {
           SliverAppBar(
             expandedHeight: hasImage ? 200 : 120,
             pinned: true,
-            // iconTheme fuerza que los iconos del AppBar sean siempre blancos
-            // sobre imagen, y usa el color del tema cuando no hay imagen
             iconTheme: hasImage
                 ? const IconThemeData(color: Colors.white)
                 : IconThemeData(
@@ -157,7 +164,7 @@ class CollectionDetailPage extends ConsumerWidget {
                 : Theme.of(context).appBarTheme.foregroundColor,
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
-                collection.name,
+                col.name,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: hasImage ? Colors.white : null,
@@ -171,40 +178,30 @@ class CollectionDetailPage extends ConsumerWidget {
                       fit: StackFit.expand,
                       children: [
                         Image.file(
-                          File(collection.coverImage!),
+                          File(col.coverImage!),
                           fit: BoxFit.cover,
                         ),
-                        // Overlay superior — garantiza que los iconos
-                        // del AppBar sean legibles independientemente
-                        // de los colores de la imagen
                         Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.center,
-                              colors: [
-                                Colors.black54,
-                                Colors.transparent,
-                              ],
+                              colors: [Colors.black54, Colors.transparent],
                             ),
                           ),
                         ),
-                        // Overlay inferior — da profundidad al título
                         Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.bottomCenter,
                               end: Alignment.center,
-                              colors: [
-                                gradientEnd,
-                                Colors.transparent,
-                              ],
+                              colors: [gradientEnd, Colors.transparent],
                             ),
                           ),
                         ),
                       ],
                     )
-                  : _coloredBackground(context, collection.color),
+                  : _coloredBackground(context, col.color),
             ),
             actions: [
               IconButton(
@@ -219,11 +216,12 @@ class CollectionDetailPage extends ConsumerWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.edit_outlined, size: 26),
+                // Se pasa col (la versión viva) para que el sheet
+                // abra con los datos actuales, no los del parámetro original
                 onPressed: () => showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
-                  builder: (_) =>
-                      AddCollectionSheet(existingCollection: collection),
+                  builder: (_) => AddCollectionSheet(existingCollection: col),
                 ),
               ),
             ],
@@ -239,7 +237,7 @@ class CollectionDetailPage extends ConsumerWidget {
                     )
                     .update((s) => s.copyWith(query: value)),
                 decoration: InputDecoration(
-                  hintText: 'Search in ${collection.name}...',
+                  hintText: 'Search in ${col.name}...',
                   prefixIcon: const Icon(Icons.search),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(28),
@@ -312,8 +310,6 @@ class CollectionDetailPage extends ConsumerWidget {
     );
   }
 
-  // Fondo de color para colecciones sin imagen.
-  // Si color es null, usa el surface del tema — siempre adaptado al tema actual.
   Widget _coloredBackground(BuildContext context, String? colorHex) {
     final Color color;
     if (colorHex != null) {
@@ -326,7 +322,6 @@ class CollectionDetailPage extends ConsumerWidget {
         return Container(color: Theme.of(context).colorScheme.surface);
       }
     } else {
-      // null = predeterminado del tema
       color = Theme.of(context).colorScheme.surface;
     }
 

@@ -19,11 +19,26 @@ final collectionsProvider = FutureProvider<List<CollectionWithCount>>((
   return repo.getAllWithCount();
 });
 
-// Filtro y ordenamiento de colecciones
+// Obtener una colección por su ID (con bookmark count)
+final collectionByIdProvider = Provider.family<CollectionWithCount?, int>((ref, id) {
+  return ref.watch(collectionsProvider).whenOrNull(
+    data: (list) {
+      try {
+        return list.firstWhere((c) => c.id == id);
+      } catch (_) {
+        return null;
+      }
+    },
+  );
+});
+
+// Provider para manejar el filtro y orden de las colecciones
 
 final collectionFilterProvider = StateProvider<CollectionFilter>((ref) {
   return const CollectionFilter();
 });
+
+// Colecciones filtradas y ordenadas
 
 final filteredCollectionsProvider =
     Provider<AsyncValue<List<CollectionWithCount>>>((ref) {
