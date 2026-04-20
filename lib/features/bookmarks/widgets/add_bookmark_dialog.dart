@@ -223,7 +223,7 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF282828),
+          color:  Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(28),
         ),
         padding: const EdgeInsets.all(24),
@@ -253,7 +253,7 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
                           height: 110,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF404040),
+                            color:  Theme.of(context).inputDecorationTheme.fillColor,
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: hasImage
@@ -270,19 +270,19 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
                                           fit: BoxFit.cover,
                                           width: double.infinity,
                                           errorBuilder: (_, _, _) =>
-                                              const Center(
+                                              Center(
                                                 child: Icon(
                                                   Icons.broken_image,
-                                                  color: Colors.white54,
+                                                  color: Theme.of(context).colorScheme.onSurface,
                                                   size: 28,
                                                 ),
                                               ),
                                         ),
                                 )
-                              : const Center(
+                              : Center(
                                   child: Icon(
                                     Icons.camera_alt,
-                                    color: Colors.white54,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                     size: 28,
                                   ),
                                 ),
